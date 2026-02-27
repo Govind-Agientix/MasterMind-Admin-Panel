@@ -8,6 +8,7 @@ import { CloudCog } from "lucide-react";
 // Base URL for the API server
 // export const API_BASE_URL = "https://fireless-axel-agnostically.ngrok-free.dev/api/v1";
 export const API_BASE_URL = "https://api.evanstrainer.com/api/v1";
+// export const API_BASE_URL = "http://192.168.3.199:6001/api/v1";
 // API Endpoints
 export const API_ENDPOINTS = {
   // Admin endpoints
@@ -41,6 +42,15 @@ export const API_ENDPOINTS = {
       delete: (roleId: string) => `${API_BASE_URL}/admin/roles/${roleId}`,
     }
     // Add more admin endpoints here as needed
+  },
+  // Manager dashboard endpoints
+  manager: {
+    dashboard: {
+      summary: `${API_BASE_URL}/manager/dashboard/summary`,
+      learners: `${API_BASE_URL}/manager/dashboard/learners`,
+      learnerReport: (learnerId: string) => `${API_BASE_URL}/manager/dashboard/learner/${learnerId}/report`,
+      export: `${API_BASE_URL}/manager/dashboard/export`,
+    },
   },
   // Add more endpoint groups here as needed
   // users: {

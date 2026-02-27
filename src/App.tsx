@@ -7,6 +7,8 @@ import UserManagement from "./pages/UserManagement";
 import VideoManagement from "./pages/VideoManagement";
 import QuestionManagement from "./pages/QuestionManagement";
 import RoleManagement from "./pages/RoleManagement";
+import ManagerDashboard from "./pages/ManagerDashboard";
+import LearnerReport from "./pages/LearnerReport";
 import { Toaster } from "sonner";
 
 const App = () => (
@@ -67,6 +69,26 @@ const App = () => (
           <ProtectedRoute>
             <AdminLayout>
               <RoleManagement />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager"
+        element={
+          <ProtectedRoute>
+            <AdminLayout>
+              <ManagerDashboard />
+            </AdminLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/learners/:learnerId"
+        element={
+          <ProtectedRoute>
+            <AdminLayout>
+              <LearnerReport />
             </AdminLayout>
           </ProtectedRoute>
         }

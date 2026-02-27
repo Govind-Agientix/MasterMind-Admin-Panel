@@ -47,7 +47,7 @@ export const useAuthStore = create<AuthState>()(
               .trim() || "Admin User";
 
             const user: AdminUser = {
-              id: adminData.admin_id,
+              id: adminData.id ?? adminData.admin_id,
               email: adminData.email,
               name: fullName,
               role: "admin", // Default role for admin users
