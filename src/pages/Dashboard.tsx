@@ -1,9 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartConfig, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { Users, MessageSquare, Video, TrendingUp, TrendingDown } from "lucide-react";
-import { generateMockData } from "@/lib/mockData";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Users, Video, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAdminStore } from "@/store/adminStore";
 import apiClient from "@/lib/axios";
@@ -17,25 +16,70 @@ interface DailyStat {
   videos: number;
 }
 
+interface PeakHourEntry {
+  hour: number;
+  label: string;
+  events: number;
+}
+
+interface DayMatrix {
+  day: string;
+  hours: PeakHourEntry[];
+  total: number;
+  peak_hour: number;
+  peak_hour_label: string;
+  peak_hour_events: number;
+}
+
+interface DailyPeak {
+  day: string;
+  peak_hour: number;
+  peak_hour_label: string;
+  peak_hour_events: number;
+  total_events: number;
+}
+
+interface PeakHours {
+  matrix: DayMatrix[];
+  daily_peaks: DailyPeak[];
+  summary: {
+    peak_day: string;
+    peak_hour: number;
+    peak_hour_label: string;
+    peak_value: number;
+    total_events: number;
+    date_range: { from: string; to: string };
+    days_analyzed: number;
+  };
+  sources: {
+    chat_messages: number;
+    video_events: number;
+  };
+}
+
 interface OverviewResponse {
+  totalActiveUsers: number;
   totalDAU: number;
-  totalQuestions: number;
   totalVideos: number;
+  totalQuestions: number;
+  totalPublishedVideos: number;
   dauChange: number;
   questionsChange: number;
   videosChange: number;
   dailyStats: DailyStat[];
+  peakHours: PeakHours;
   timestamp: string;
 }
 
+// Show only every 3rd hour label to avoid clutter
+const HOUR_LABELS = ["12a", "3a", "6a", "9a", "12p", "3p", "6p", "9p"];
+
 export default function Dashboard() {
-  const mockStats = useMemo(() => generateMockData(), []);
-  const { users, videos, questions } = useAdminStore();
+  const { videos } = useAdminStore();
   const { token } = useAuthStore();
   const [overviewData, setOverviewData] = useState<OverviewResponse | null>(null);
   const [isLoadingOverview, setIsLoadingOverview] = useState(true);
 
-  // Fetch overview data from API
   useEffect(() => {
     const fetchOverview = async () => {
       try {
@@ -46,101 +90,75 @@ export default function Dashboard() {
         setOverviewData(response.data);
       } catch (error) {
         console.error("Failed to fetch overview data:", error);
-        // On error, keep overviewData as null to use fallback values
       } finally {
         setIsLoadingOverview(false);
       }
     };
-
     fetchOverview();
   }, [token]);
 
-  // Calculate stats - use API data if available, otherwise fallback to store/mock data
-  const realStats = useMemo(() => {
+  const stats = useMemo(() => {
     if (overviewData) {
       return {
-        activeUsers: Math.round(overviewData.totalDAU),
-        totalQuestions: Math.round(overviewData.totalQuestions),
-        totalVideos: Math.round(overviewData.totalVideos),
-        publishedVideos: videos.filter(v => v.status === "published").length,
-      };
-    }
-
-    // Fallback to store values
-    return {
-      activeUsers: users.filter(u => u.status === "active").length,
-      totalQuestions: questions.length,
-      totalVideos: videos.length,
-      publishedVideos: videos.filter(v => v.status === "published").length,
-    };
-  }, [overviewData, users, videos, questions]);
-
-  // Use API overview data for trends, fallback to mock data
-  const trendStats = useMemo(() => {
-    if (overviewData) {
-      return {
-        totalDAU: overviewData.totalDAU,
-        totalQuestions: overviewData.totalQuestions,
+        activeUsers: overviewData.totalActiveUsers,
         totalVideos: overviewData.totalVideos,
+        publishedVideos: overviewData.totalPublishedVideos,
+        totalDAU: overviewData.totalDAU,
         dauChange: overviewData.dauChange,
-        questionsChange: overviewData.questionsChange,
         videosChange: overviewData.videosChange,
       };
     }
     return {
-      totalDAU: mockStats.totalDAU,
-      totalQuestions: mockStats.totalQuestions,
-      totalVideos: mockStats.totalVideos,
-      dauChange: mockStats.dauChange,
-      questionsChange: mockStats.questionsChange,
-      videosChange: mockStats.videosChange,
+      activeUsers: 0,
+      totalVideos: videos.length,
+      publishedVideos: videos.filter(v => v.status === "published").length,
+      totalDAU: 0,
+      dauChange: 0,
+      videosChange: 0,
     };
-  }, [overviewData, mockStats]);
+  }, [overviewData, videos]);
 
   const dauChartConfig = {
-    dau: {
-      label: "Daily Active Users",
-      color: "hsl(var(--primary))",
-    },
-  } satisfies ChartConfig;
-
-  const questionsChartConfig = {
-    questions: {
-      label: "Questions Asked",
-      color: "hsl(var(--accent))",
-    },
+    dau: { label: "Daily Active Users", color: "hsl(var(--primary))" },
   } satisfies ChartConfig;
 
   const videosChartConfig = {
-    videos: {
-      label: "Videos Watched",
-      color: "hsl(var(--primary))",
-    },
+    videos: { label: "Videos Watched", color: "hsl(217, 91%, 60%)" },
   } satisfies ChartConfig;
 
   const combinedChartConfig = {
-    dau: {
-      label: "Daily Active Users",
-      color: "hsl(var(--primary))",
-    },
-    questions: {
-      label: "Questions Asked",
-      color: "hsl(var(--accent))",
-    },
-    videos: {
-      label: "Videos Watched",
-      color: "hsl(217, 91%, 60%)",
-    },
+    dau: { label: "Daily Active Users", color: "hsl(var(--primary))" },
+    videos: { label: "Videos Watched", color: "hsl(217, 91%, 60%)" },
   } satisfies ChartConfig;
 
-  // Format dates for display - use API data if available, otherwise use mock data
   const chartData = useMemo(() => {
-    const dailyStats = overviewData?.dailyStats || mockStats.dailyStats;
-    return dailyStats.map((day) => ({
+    if (!overviewData?.dailyStats) return [];
+    return overviewData.dailyStats.map((day) => ({
       ...day,
       date: new Date(day.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     }));
-  }, [overviewData, mockStats]);
+  }, [overviewData]);
+
+  // Compute max events across entire heatmap for color scaling
+  const heatmapMax = useMemo(() => {
+    if (!overviewData?.peakHours?.matrix) return 1;
+    let max = 1;
+    for (const day of overviewData.peakHours.matrix) {
+      for (const h of day.hours) {
+        if (h.events > max) max = h.events;
+      }
+    }
+    return max;
+  }, [overviewData]);
+
+  const getHeatColor = (events: number, max: number) => {
+    if (events === 0) return "bg-muted";
+    const intensity = events / max;
+    if (intensity < 0.25) return "bg-emerald-200 dark:bg-emerald-900";
+    if (intensity < 0.5) return "bg-emerald-400 dark:bg-emerald-700";
+    if (intensity < 0.75) return "bg-emerald-600 dark:bg-emerald-500";
+    return "bg-emerald-800 dark:bg-emerald-300";
+  };
 
   const StatCard = ({
     title,
@@ -148,23 +166,15 @@ export default function Dashboard() {
     change,
     icon: Icon,
     description,
-    showDecimal = false,
   }: {
     title: string;
     value: number;
     change: number;
     icon: React.ComponentType<{ className?: string }>;
     description?: string;
-    showDecimal?: boolean;
   }) => {
-    const safeValue = value ?? 0;
     const safeChange = change ?? 0;
     const isPositive = safeChange >= 0;
-    const formattedValue = showDecimal
-      ? safeValue.toFixed(1)
-      : safeValue % 1 === 0
-        ? safeValue.toLocaleString()
-        : safeValue.toFixed(1);
 
     return (
       <Card>
@@ -173,9 +183,9 @@ export default function Dashboard() {
           <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formattedValue}</div>
+          <div className="text-2xl font-bold">{(value ?? 0).toLocaleString()}</div>
           {safeChange !== 0 && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
               {isPositive ? (
                 <TrendingUp className="h-3 w-3 text-green-600" />
               ) : (
@@ -184,7 +194,7 @@ export default function Dashboard() {
               <span className={cn(isPositive ? "text-green-600" : "text-red-600")}>
                 {Math.abs(safeChange).toFixed(1)}%
               </span>
-              <span>from last week</span>
+              <span>from last period</span>
             </div>
           )}
           {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
@@ -193,81 +203,52 @@ export default function Dashboard() {
     );
   };
 
+  const peakHours = overviewData?.peakHours;
+
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Top stat cards */}
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard
           title="Active Users"
-          value={realStats.activeUsers}
+          value={stats.activeUsers}
           change={0}
           icon={Users}
-          description="Currently active users"
+          description="Total registered active users"
         />
-        {/* <StatCard
-          title="Total Questions"
-          value={realStats.totalQuestions}
-          change={0}
-          icon={MessageSquare}
-          description="Questions in database"
-        /> */}
+        <StatCard
+          title="Daily Active Users"
+          value={stats.totalDAU}
+          change={stats.dauChange}
+          icon={Users}
+          description="Users active in the last 30 days"
+        />
         <StatCard
           title="Total Videos"
-          value={realStats.totalVideos}
-          change={0}
+          value={stats.totalVideos}
+          change={stats.videosChange}
           icon={Video}
           description="Videos in library"
         />
         <StatCard
           title="Published Videos"
-          value={realStats.publishedVideos}
+          value={stats.publishedVideos}
           change={0}
           icon={Video}
           description="Published video content"
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard
-          title="Daily Active Users (Trend)"
-          value={trendStats.totalDAU}
-          change={trendStats.dauChange}
-          icon={Users}
-          description="Average daily active users"
-          showDecimal={true}
-        />
-        {/* <StatCard
-          title="Questions Asked (Trend)"
-          value={trendStats.totalQuestions}
-          change={trendStats.questionsChange}
-          icon={MessageSquare}
-          description="Average daily questions"
-          showDecimal={true}
-        /> */}
-        <StatCard
-          title="Videos Watched (Trend)"
-          value={trendStats.totalVideos}
-          change={trendStats.videosChange}
-          icon={Video}
-          description="Average daily video views"
-          showDecimal={true}
-        />
-      </div>
-
-      {/* Charts */}
+      {/* DAU + Videos charts side by side */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* DAU Chart */}
         <Card>
           <CardHeader>
             <CardTitle>Daily Active Users</CardTitle>
             <CardDescription>User activity over the last 30 days</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={dauChartConfig}>
-              <AreaChart
-                data={chartData}
-                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-              >
+            <ChartContainer config={dauChartConfig} className="h-[220px]">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="fillDau" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--color-dau)" stopOpacity={0.8} />
@@ -275,162 +256,195 @@ export default function Dashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis
-                  dataKey="date"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tickFormatter={(value) => value.slice(0, 3)}
-                />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.slice(0, 3)} />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <Area
-                  dataKey="dau"
-                  type="monotone"
-                  fill="url(#fillDau)"
-                  fillOpacity={0.4}
-                  stroke="var(--color-dau)"
-                  stackId="a"
-                />
+                <Area dataKey="dau" type="monotone" fill="url(#fillDau)" fillOpacity={0.4} stroke="var(--color-dau)" />
               </AreaChart>
             </ChartContainer>
           </CardContent>
         </Card>
 
-        {/* Questions Chart */}
-        {/* <Card>
+        <Card>
           <CardHeader>
-            <CardTitle>Questions Asked</CardTitle>
-            <CardDescription>Question volume over the last 30 days</CardDescription>
+            <CardTitle>Videos Activity</CardTitle>
+            <CardDescription>Video uploads/views over the last 30 days</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={questionsChartConfig}>
-              <BarChart
-                data={chartData}
-                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-              >
+            <ChartContainer config={videosChartConfig} className="h-[220px]">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="fillVideos" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-videos)" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="var(--color-videos)" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis
-                  dataKey="date"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tickFormatter={(value) => value.slice(0, 3)}
-                />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.slice(0, 3)} />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <Bar dataKey="questions" fill="var(--color-questions)" radius={4} />
-              </BarChart>
+                <Area dataKey="videos" type="monotone" fill="url(#fillVideos)" fillOpacity={0.4} stroke="var(--color-videos)" />
+              </AreaChart>
             </ChartContainer>
           </CardContent>
-        </Card> */}
+        </Card>
       </div>
 
-      {/* Videos Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Videos Watched</CardTitle>
-          <CardDescription>Video engagement over the last 30 days</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={videosChartConfig} className="h-[300px]">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="fillVideos" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-videos)" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="var(--color-videos)" stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                dataKey="date"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                tickFormatter={(value) => value.slice(0, 3)}
-              />
-              <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-              <Area
-                dataKey="videos"
-                type="monotone"
-                fill="url(#fillVideos)"
-                fillOpacity={0.4}
-                stroke="var(--color-videos)"
-                stackId="a"
-              />
-            </AreaChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
-
-      {/* Combined Chart */}
+      {/* Combined overview chart */}
       <Card>
         <CardHeader>
           <CardTitle>All Metrics Overview</CardTitle>
-          <CardDescription>Compare DAU, questions, and videos in one view</CardDescription>
+          <CardDescription>DAU and videos compared over the last 30 days</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={combinedChartConfig} className="h-[400px]">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-            >
+          <ChartContainer config={combinedChartConfig} className="h-[300px]">
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="fillDauCombined" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="fillDauC" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--color-dau)" stopOpacity={0.8} />
                   <stop offset="95%" stopColor="var(--color-dau)" stopOpacity={0.1} />
                 </linearGradient>
-                <linearGradient id="fillQuestionsCombined" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--color-questions)" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="var(--color-questions)" stopOpacity={0.1} />
-                </linearGradient>
-                <linearGradient id="fillVideosCombined" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="fillVideosC" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--color-videos)" stopOpacity={0.8} />
                   <stop offset="95%" stopColor="var(--color-videos)" stopOpacity={0.1} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                dataKey="date"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                tickFormatter={(value) => value.slice(0, 3)}
-              />
+              <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.slice(0, 3)} />
               <YAxis tickLine={false} axisLine={false} tickMargin={8} />
               <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-              <Area
-                dataKey="dau"
-                type="monotone"
-                fill="url(#fillDauCombined)"
-                fillOpacity={0.4}
-                stroke="var(--color-dau)"
-                stackId="a"
-              />
-              <Area
-                dataKey="questions"
-                type="monotone"
-                fill="url(#fillQuestionsCombined)"
-                fillOpacity={0.4}
-                stroke="var(--color-questions)"
-                stackId="b"
-              />
-              <Area
-                dataKey="videos"
-                type="monotone"
-                fill="url(#fillVideosCombined)"
-                fillOpacity={0.4}
-                stroke="var(--color-videos)"
-                stackId="c"
-              />
+              <Area dataKey="dau" type="monotone" fill="url(#fillDauC)" fillOpacity={0.4} stroke="var(--color-dau)" stackId="a" />
+              <Area dataKey="videos" type="monotone" fill="url(#fillVideosC)" fillOpacity={0.4} stroke="var(--color-videos)" stackId="b" />
             </AreaChart>
           </ChartContainer>
         </CardContent>
       </Card>
+
+      {/* Peak Hours Heatmap */}
+      {peakHours && (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Peak Activity Hours
+                </CardTitle>
+                <CardDescription>
+                  Hourly engagement heatmap — {peakHours.summary.days_analyzed} days analysed
+                  ({peakHours.summary.date_range.from} to {peakHours.summary.date_range.to})
+                </CardDescription>
+              </div>
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground shrink-0">
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-emerald-800 dark:bg-emerald-300" />
+                  High
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-emerald-600 dark:bg-emerald-500" />
+                  Med-High
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-emerald-400 dark:bg-emerald-700" />
+                  Medium
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-emerald-200 dark:bg-emerald-900" />
+                  Low
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-muted" />
+                  None
+                </span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Summary badges */}
+            <div className="flex flex-wrap gap-3 mb-4 text-xs">
+              <div className="rounded-md bg-muted px-3 py-1.5">
+                <span className="text-muted-foreground">Peak day: </span>
+                <span className="font-semibold">{peakHours.summary.peak_day}</span>
+              </div>
+              <div className="rounded-md bg-muted px-3 py-1.5">
+                <span className="text-muted-foreground">Peak hour: </span>
+                <span className="font-semibold">{peakHours.summary.peak_hour_label}</span>
+              </div>
+              <div className="rounded-md bg-muted px-3 py-1.5">
+                <span className="text-muted-foreground">Total events: </span>
+                <span className="font-semibold">{peakHours.summary.total_events}</span>
+              </div>
+              <div className="rounded-md bg-muted px-3 py-1.5">
+                <span className="text-muted-foreground">Video events: </span>
+                <span className="font-semibold">{peakHours.sources.video_events}</span>
+              </div>
+            </div>
+
+            {/* Heatmap grid */}
+            <div className="overflow-x-auto">
+              <div className="min-w-[600px]">
+                {/* Hour axis labels */}
+                <div className="flex items-center mb-1 pl-20">
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <div key={i} className="flex-1 text-center">
+                      {i % 3 === 0 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {HOUR_LABELS[i / 3]}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Day rows */}
+                {peakHours.matrix.map((dayRow) => (
+                  <div key={dayRow.day} className="flex items-center mb-1 gap-1">
+                    <div className="w-20 shrink-0 text-xs text-muted-foreground font-medium text-right pr-2">
+                      {dayRow.day.slice(0, 3)}
+                    </div>
+                    <div className="flex flex-1 gap-[2px]">
+                      {dayRow.hours.map((h) => (
+                        <div
+                          key={h.hour}
+                          title={`${dayRow.day} ${h.label}: ${h.events} event${h.events !== 1 ? "s" : ""}`}
+                          className={cn(
+                            "flex-1 h-6 rounded-[3px] cursor-default transition-opacity hover:opacity-80",
+                            getHeatColor(h.events, heatmapMax)
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <div className="w-8 shrink-0 text-[10px] text-muted-foreground text-right">
+                      {dayRow.total}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Per-day peak summary bar */}
+                <div className="flex items-center mt-3 gap-1">
+                  <div className="w-20 shrink-0 text-[10px] text-muted-foreground text-right pr-2">
+                    Peak
+                  </div>
+                  <div className="flex flex-1 gap-[2px]">
+                    {peakHours.daily_peaks.map((dp) => (
+                      <div
+                        key={dp.day}
+                        title={`${dp.day} peak: ${dp.peak_hour_label} (${dp.peak_hour_events} events)`}
+                        className="flex-1 text-center"
+                      >
+                        <span className="text-[9px] text-muted-foreground leading-none">
+                          {dp.total_events > 0 ? dp.peak_hour_label.replace(" ", "") : "-"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="w-8 shrink-0" />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -40,7 +40,7 @@ export const API_ENDPOINTS = {
       add: `${API_BASE_URL}/admin/roles`,
       update: (roleId: string) => `${API_BASE_URL}/admin/roles/${roleId}`,
       delete: (roleId: string) => `${API_BASE_URL}/admin/roles/${roleId}`,
-    }
+    },
     // Add more admin endpoints here as needed
   },
   // Manager dashboard endpoints
@@ -48,7 +48,8 @@ export const API_ENDPOINTS = {
     dashboard: {
       summary: `${API_BASE_URL}/manager/dashboard/summary`,
       learners: `${API_BASE_URL}/manager/dashboard/learners`,
-      learnerReport: (learnerId: string) => `${API_BASE_URL}/manager/dashboard/learner/${learnerId}/report`,
+      learnerReport: (learnerId: string) =>
+        `${API_BASE_URL}/manager/dashboard/learner/${learnerId}/report`,
       export: `${API_BASE_URL}/manager/dashboard/export`,
     },
   },
@@ -64,4 +65,3 @@ export const API_ENDPOINTS = {
 export const getApiUrl = (endpoint: string): string => {
   return `${API_BASE_URL}${endpoint}`;
 };
-

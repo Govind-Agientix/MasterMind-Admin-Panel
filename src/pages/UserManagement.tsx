@@ -62,6 +62,13 @@ interface ApiUsersResponse {
   };
 }
 
+function formatPhoneNumber(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+  if (digits.length < 4) return digits;
+  if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 export default function UserManagement() {
   const { users: storeUsers, addUser, updateUser, deleteUser } = useAdminStore();
   const { token } = useAuthStore();
@@ -419,8 +426,8 @@ export default function UserManagement() {
                     id="phoneNumber"
                     type="tel"
                     value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                    placeholder="+1234567890"
+                    onChange={(e) => setFormData({ ...formData, phoneNumber: formatPhoneNumber(e.target.value) })}
+                    placeholder="(407) 307-0855"
                   />
                 </div>
                 <div className="grid gap-2">
@@ -435,7 +442,9 @@ export default function UserManagement() {
                     <SelectContent>
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="moderator">Moderator</SelectItem>
+                      <SelectItem value="domestic">Domestic</SelectItem>
+                      <SelectItem value="brokerage">Brokerage</SelectItem>
+                      <SelectItem value="intermodal_drayage">Intermodal/Drayage</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

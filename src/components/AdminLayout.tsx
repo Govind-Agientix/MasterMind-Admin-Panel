@@ -1,5 +1,17 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Video, MessageSquare, Shield, Menu, X, LogOut, User, Key, BarChart3 } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Video,
+  MessageSquare,
+  Shield,
+  Menu,
+  X,
+  LogOut,
+  User,
+  Key,
+  BarChart3,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -23,7 +35,7 @@ interface AdminLayoutProps {
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Manager Dashboard", href: "/manager", icon: BarChart3 },
+  // { name: "Manager Dashboard", href: "/manager", icon: BarChart3 },
   { name: "Users", href: "/users", icon: Users },
   { name: "Videos", href: "/videos", icon: Video },
   // { name: "Questions", href: "/questions", icon: MessageSquare },
@@ -42,10 +54,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      await apiClient.post(
-        API_ENDPOINTS.admin.logout,
-        {}
-      );
+      await apiClient.post(API_ENDPOINTS.admin.logout, {});
       toast.success("Logged out successfully");
     } catch (error) {
       console.error("Logout failed:", error);
@@ -70,10 +79,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div
         className={cn(
           "fixed inset-0 z-50 lg:hidden",
-          sidebarOpen ? "block" : "hidden"
+          sidebarOpen ? "block" : "hidden",
         )}
       >
-        <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 bg-black/50"
+          onClick={() => setSidebarOpen(false)}
+        />
         <div className="fixed inset-y-0 left-0 w-64 bg-card border-r">
           <div className="flex h-16 items-center justify-between px-6 border-b">
             <h1 className="text-xl font-bold">Admin Panel</h1>
@@ -87,7 +99,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
           <nav className="p-4 space-y-2">
             {navigation.map((item) => {
-              const isActive = item.href === "/manager" ? location.pathname.startsWith("/manager") : location.pathname === item.href;
+              const isActive =
+                item.href === "/manager"
+                  ? location.pathname.startsWith("/manager")
+                  : location.pathname === item.href;
               return (
                 <Link
                   key={item.name}
@@ -97,7 +112,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
                     isActive
                       ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted"
+                      : "hover:bg-muted",
                   )}
                 >
                   <item.icon className="h-5 w-5" />
@@ -111,7 +126,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <User className="h-4 w-4 text-muted-foreground" />
                   <div className="flex flex-col">
                     <span className="font-medium">{user?.name || "Admin"}</span>
-                    <span className="text-xs text-muted-foreground">{user?.email}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {user?.email}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -151,7 +168,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <nav className="flex flex-1 flex-col pt-6">
             <ul role="list" className="flex flex-1 flex-col gap-y-2">
               {navigation.map((item) => {
-                const isActive = item.href === "/manager" ? location.pathname.startsWith("/manager") : location.pathname === item.href;
+                const isActive =
+                  item.href === "/manager"
+                    ? location.pathname.startsWith("/manager")
+                    : location.pathname === item.href;
                 return (
                   <li key={item.name}>
                     <Link
@@ -160,7 +180,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
                         isActive
                           ? "bg-primary text-primary-foreground"
-                          : "hover:bg-muted"
+                          : "hover:bg-muted",
                       )}
                     >
                       <item.icon className="h-5 w-5" />
@@ -176,7 +196,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <User className="h-4 w-4 text-muted-foreground" />
                   <div className="flex flex-col">
                     <span className="font-medium">{user?.name || "Admin"}</span>
-                    <span className="text-xs text-muted-foreground">{user?.email}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {user?.email}
+                    </span>
                   </div>
                 </div>
               </div>
