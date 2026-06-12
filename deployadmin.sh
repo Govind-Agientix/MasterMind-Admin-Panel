@@ -48,7 +48,7 @@ CONF="/etc/nginx/sites-available/admin-8080"
 sudo tee "$CONF" > /dev/null << 'NGINXEOF'
 server {
     listen 8080;
-    server_name _;
+    server_name admin.evanstrainer.com;
 
     root /var/www/admin;
     index index.html;
@@ -62,9 +62,6 @@ NGINXEOF
 # Enable the site
 sudo ln -sf "$CONF" /etc/nginx/sites-enabled/admin-8080
 
-# Make sure nginx is listening on port 8080
-# (add to nginx.conf http block if not already present — usually not needed)
-
 echo "  Testing nginx config..."
 sudo nginx -t
 
@@ -75,10 +72,42 @@ echo "  Done."
 ENDSSH
 
 echo ""
+echo "──────────────────────────────────────────"
+echo " Step 5: Installing SSL certificate..."
+echo "──────────────────────────────────────────"
+
+$SSH "$EC2_USER@$EC2_IP" bash << 'ENDSSH'
+set -e
+
+# Install certbot if not already installed
+if ! command -v certbot &> /dev/null; then
+  echo "  Installing certbot..."
+  sudo apt-get update -qq
+  sudo apt-get install -y certbot python3-certbot-nginx
+else
+  echo "  Certbot already installed."
+fi
+
+# Obtain and install certificate (nginx plugin handles config automatically)
+echo "  Requesting SSL certificate for admin.evanstrainer.com..."
+sudo certbot --nginx \
+  -d admin.evanstrainer.com \
+  --non-interactive \
+  --agree-tos \
+  --email govind@agientix.ai \
+  --redirect
+
+echo "  SSL certificate installed."
+ENDSSH
+
+echo ""
 echo "══════════════════════════════════════════"
 echo "  Deploy complete!"
-echo "  Admin panel: http://$EC2_IP:8080"
+echo "  Admin panel: https://admin.evanstrainer.com"
 echo ""
-echo "  IMPORTANT: Make sure port 8080 is open"
-echo "  in your EC2 Security Group inbound rules."
+echo "  IMPORTANT: Make sure these ports are open"
+echo "  in your EC2 Security Group inbound rules:"
+echo "    - Port 80  (HTTP  - for cert renewal)"
+echo "    - Port 443 (HTTPS - for the admin panel)"
+echo "    - Port 8080 (if you still need direct IP access)"
 echo "══════════════════════════════════════════"
