@@ -8,7 +8,7 @@ import { CloudCog } from "lucide-react";
 // Base URL for the API server
 // export const API_BASE_URL = "https://fireless-axel-agnostically.ngrok-free.dev/api/v1";
 export const API_BASE_URL = "https://api.evanstrainer.com/api/v1";
-// export const API_BASE_URL = "http://192.168.3.199:6001/api/v1";
+// export const API_BASE_URL = "http://192.168.3.230:5174/api/v1";
 // API Endpoints
 export const API_ENDPOINTS = {
   // Admin endpoints

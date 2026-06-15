@@ -32,7 +32,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { format } from "date-fns";
 
 interface ApiUser {
@@ -42,6 +50,7 @@ interface ApiUser {
   first_name: string | null;
   last_name: string | null;
   phone_number: string | null;
+  role: string;
   is_active: boolean;
   created_at: string | null;
 }
@@ -70,7 +79,12 @@ function formatPhoneNumber(value: string): string {
 }
 
 export default function UserManagement() {
-  const { users: storeUsers, addUser, updateUser, deleteUser } = useAdminStore();
+  const {
+    users: storeUsers,
+    addUser,
+    updateUser,
+    deleteUser,
+  } = useAdminStore();
   const { token } = useAuthStore();
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [apiUsers, setApiUsers] = useState<User[]>([]);
@@ -87,8 +101,8 @@ export default function UserManagement() {
       const response = await apiClient.get<ApiUsersResponse>(
         API_ENDPOINTS.admin.users.list,
         {
-          params: { page, limit }
-        }
+          params: { page, limit },
+        },
       );
 
       // Check if response.data is an array (direct listing) or paginated object
@@ -122,7 +136,7 @@ export default function UserManagement() {
           id: userId,
           name: fullName,
           email: apiUser.email,
-          role: "user", // Default role since API doesn't provide it
+          role: apiUser.role || "user",
           status: apiUser.is_active ? "active" : "inactive",
           createdAt: apiUser.created_at || new Date().toISOString(),
           lastLogin: undefined, // Not provided by API
@@ -150,10 +164,13 @@ export default function UserManagement() {
       return storeUsers;
     }
 
-    return apiUsers.map(apiUser => {
-      const storeUser = storeUsers.find(u => u.email === apiUser.email);
+    return apiUsers.map((apiUser) => {
+      const storeUser = storeUsers.find((u) => u.email === apiUser.email);
       // Merge: use API user data but keep store user's role/status if it was edited
-      if (storeUser && (storeUser.role !== "user" || storeUser.status !== "active")) {
+      if (
+        storeUser &&
+        (storeUser.role !== "user" || storeUser.status !== "active")
+      ) {
         return { ...apiUser, role: storeUser.role, status: storeUser.status };
       }
       return apiUser;
@@ -229,11 +246,15 @@ export default function UserManagement() {
       if (editingUser) {
         // For editing, call the PUT API
         // Check if user has a valid user_id (not null and not a temp ID)
-        const userId = editingUser.id.startsWith("temp-") ? null : editingUser.id;
+        const userId = editingUser.id.startsWith("temp-")
+          ? null
+          : editingUser.id;
 
         if (!userId) {
           // If no valid user_id, fall back to local store update
-          const existingStoreUser = storeUsers.find(u => u.id === editingUser.id || u.email === editingUser.email);
+          const existingStoreUser = storeUsers.find(
+            (u) => u.id === editingUser.id || u.email === editingUser.email,
+          );
           if (existingStoreUser) {
             updateUser(existingStoreUser.id, {
               name: `${formData.firstName} ${formData.lastName}`.trim(),
@@ -279,7 +300,7 @@ export default function UserManagement() {
 
         await apiClient.put(
           API_ENDPOINTS.admin.users.update(userId),
-          updatePayload
+          updatePayload,
         );
 
         // Refresh the user list after successful update
@@ -288,17 +309,15 @@ export default function UserManagement() {
         handleCloseDialog();
       } else {
         // For creating new user, call the POST API
-        await apiClient.post(
-          API_ENDPOINTS.admin.users.create,
-          {
-            email: formData.email,
-            password: formData.password,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            phone_number: formData.phoneNumber,
-            is_active: formData.status === "active",
-          }
-        );
+        await apiClient.post(API_ENDPOINTS.admin.users.create, {
+          email: formData.email,
+          password: formData.password,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          phone_number: formData.phoneNumber,
+          is_active: formData.status === "active",
+          role: formData.role,
+        });
 
         // Refresh the user list after successful creation
         await fetchUsers(currentPage, itemsPerPage);
@@ -306,8 +325,13 @@ export default function UserManagement() {
         handleCloseDialog();
       }
     } catch (error) {
-      console.error(`Failed to ${editingUser ? "update" : "create"} user:`, error);
-      toast.error(`Failed to ${editingUser ? "update" : "create"} user. Please try again.`);
+      console.error(
+        `Failed to ${editingUser ? "update" : "create"} user:`,
+        error,
+      );
+      toast.error(
+        `Failed to ${editingUser ? "update" : "create"} user. Please try again.`,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -331,9 +355,7 @@ export default function UserManagement() {
     }
 
     try {
-      await apiClient.delete(
-        API_ENDPOINTS.admin.users.delete(userId)
-      );
+      await apiClient.delete(API_ENDPOINTS.admin.users.delete(userId));
 
       // Refresh the user list after successful deletion
       await fetchUsers(currentPage, itemsPerPage);
@@ -362,7 +384,10 @@ export default function UserManagement() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()} className="bg-emerald-600 hover:bg-emerald-700 text-white border-none">
+            <Button
+              onClick={() => handleOpenDialog()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white border-none"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add User
             </Button>
@@ -370,7 +395,9 @@ export default function UserManagement() {
           <DialogContent>
             <form onSubmit={handleSubmit}>
               <DialogHeader>
-                <DialogTitle>{editingUser ? "Edit User" : "Add New User"}</DialogTitle>
+                <DialogTitle>
+                  {editingUser ? "Edit User" : "Add New User"}
+                </DialogTitle>
                 <DialogDescription>
                   {editingUser
                     ? "Update user information below."
@@ -384,7 +411,9 @@ export default function UserManagement() {
                     <Input
                       id="firstName"
                       value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, firstName: e.target.value })
+                      }
                       required={!editingUser}
                     />
                   </div>
@@ -393,7 +422,9 @@ export default function UserManagement() {
                     <Input
                       id="lastName"
                       value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, lastName: e.target.value })
+                      }
                       required={!editingUser}
                     />
                   </div>
@@ -404,7 +435,9 @@ export default function UserManagement() {
                     id="email"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
                     required
                   />
                 </div>
@@ -415,7 +448,9 @@ export default function UserManagement() {
                       id="password"
                       type="password"
                       value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
                       required
                     />
                   </div>
@@ -426,7 +461,12 @@ export default function UserManagement() {
                     id="phoneNumber"
                     type="tel"
                     value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: formatPhoneNumber(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        phoneNumber: formatPhoneNumber(e.target.value),
+                      })
+                    }
                     placeholder="(407) 307-0855"
                   />
                 </div>
@@ -434,7 +474,9 @@ export default function UserManagement() {
                   <Label htmlFor="role">Role</Label>
                   <Select
                     value={formData.role}
-                    onValueChange={(value) => setFormData({ ...formData, role: value })}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, role: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select a role" />
@@ -444,7 +486,9 @@ export default function UserManagement() {
                       <SelectItem value="user">User</SelectItem>
                       <SelectItem value="domestic">Domestic</SelectItem>
                       <SelectItem value="brokerage">Brokerage</SelectItem>
-                      <SelectItem value="intermodal_drayage">Intermodal/Drayage</SelectItem>
+                      <SelectItem value="intermodal_drayage">
+                        Intermodal/Drayage
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -467,7 +511,12 @@ export default function UserManagement() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={handleCloseDialog} disabled={isSubmitting}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCloseDialog}
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </Button>
                 <Button
@@ -475,7 +524,11 @@ export default function UserManagement() {
                   disabled={isSubmitting}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white border-none"
                 >
-                  {isSubmitting ? "Saving..." : editingUser ? "Update" : "Create"}
+                  {isSubmitting
+                    ? "Saving..."
+                    : editingUser
+                      ? "Update"
+                      : "Create"}
                 </Button>
               </DialogFooter>
             </form>
@@ -492,20 +545,26 @@ export default function UserManagement() {
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead>Last Login</TableHead>
+              {/* <TableHead>Last Login</TableHead> */}
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoadingUsers ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="text-center text-muted-foreground"
+                >
                   Loading users...
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="text-center text-muted-foreground"
+                >
                   No users found
                 </TableCell>
               </TableRow>
@@ -527,11 +586,11 @@ export default function UserManagement() {
                   <TableCell>
                     {format(new Date(user.createdAt), "MMM d, yyyy")}
                   </TableCell>
-                  <TableCell>
+                  {/* <TableCell>
                     {user.lastLogin
                       ? format(new Date(user.lastLogin), "MMM d, yyyy")
                       : "Never"}
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
@@ -610,7 +669,8 @@ export default function UserManagement() {
           <DialogHeader className="text-center">
             <DialogTitle className="text-center">Delete User</DialogTitle>
             <DialogDescription className="py-4 text-center">
-              Are you sure you want to delete this user? This action cannot be undone.
+              Are you sure you want to delete this user? This action cannot be
+              undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0 justify-center flex-row">
